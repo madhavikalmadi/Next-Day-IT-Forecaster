@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Safety Predictor</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding-top: 20px; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        h1, h2 { text-align: center; color: #0056b3; margin-bottom: 25px; }
+        .form-group label { font-weight: bold; }
+        .results-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .plot-container { text-align: center; margin-bottom: 20px; }
+        /* Make images inside plot-container always take full available width, to ensure they're big */
+        .plot-container img { 
+            max-width: 100%; 
+            height: auto; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            display: block; /* Ensures it behaves like a block element */
+            margin: 0 auto; /* Centers the image */
+        }
+        
+        .prediction-box { background-color: #e7f3ff; border: 1px dashed #007bff; border-radius: 4px; padding: 20px; text-align: center; margin-top: 20px; }
+        .error-message { color: red; text-align: center; margin-top: 10px; }
+        .table-responsive { margin-top: 20px; }
+        .table { width: 100%; margin-bottom: 1rem; color: #212529; }
+        .table th, .table td { padding: 0.75rem; vertical-align: top; border-top: 1px solid #dee2e6; }
+        .table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; }
+        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.05); }
+        .predicted-price-display { font-size: 1.2em; font-weight: bold; color: #28a745; margin-top: 10px; }
+        /* Style for the pre-formatted text output */
+        .prediction-text-output {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 20px; /* Increased padding */
+            margin-top: 25px; /* Increased top margin */
+            margin-bottom: 25px; /* Added bottom margin */
+            border-radius: 8px; /* Slightly more rounded corners */
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: center; /* Changed to center align the text */
+            font-size: 1.8em; /* SIGNIFICANTLY INCREASED FONT SIZE */
+            font-weight: bold; /* Made the text bold */
+            color: #333; /* Slightly darker text color for better contrast */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Safety Predictor</h1>
+
+        <form action="/analyze" method="post" class="mb-4">
+            <div class="form-group">
+                <label for="company_selection">Select Company or Analysis Type:</label>
+                <select class="form-control" id="company_selection" name="company_selection" onchange="this.form.submit()">
+                    <option value="" {% if not selected_option %}selected{% endif %} disabled>-- Select an Option --</option>
+                    {# Loop through the 'companies' list passed from Flask to populate the dropdown #}
+                    {% for company in companies %}
+                        <option value="{{ company }}" {% if selected_option == company %}selected{% endif %}>{{ company }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        {# Display error messages if any #}
+        {% if error_message %}
+            <p class="error-message">{{ error_message | replace('\n', '<br>') | safe }}</p>
+        {% endif %}
+
+        {% if selected_option %}
+            <div class="results-section">
+                <h2>Analysis for {{ selected_option }}</h2>
+
+                
+                {% if plots %}
+                    {# Show CAGR, Volatility, MDD plots ONLY for Overall Analysis #}
+                    {% if selected_option == 'Overall Analysis' %}
+                        <div class="row">
+                            <div class="col-md-8 plot-container">
+                                {% if plots.cagr_plot %}
+                                    <img src="{{ plots.cagr_plot }}" alt="CAGR Plot">
+                                {% endif %}
+                            </div>
+                            <div class="col-md-8 plot-container">
+                                {% if plots.volatility_plot %}
+                                    <img src="{{ plots.volatility_plot }}" alt="Volatility Plot">
+                                {% endif %}
+                            </div>
+                            <div class="col-md-8 plot-container">
+                                {% if plots.mdd_plot %}
+                                    <img src="{{ plots.mdd_plot }}" alt="Max Drawdown Plot">
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {# Section for Next Day Prediction Plot and Text (shown for individual companies) #}
+                    {% if plots.next_day_prediction_plot %}
+                        <div class="row">
+                            <div class="col-12 plot-container">
+                                <h3>Next Day Close Price Prediction</h3>
+                                {% if prediction_info.next_day_prediction_text %}
+                                    <pre class="prediction-text-output">{{ prediction_info.next_day_prediction_text }}</pre>
+                                {% endif %}
+                                <img src="{{ plots.next_day_prediction_plot }}" alt="Next Day Prediction Plot">
+                            </div>
+                        </div>
+                    {% endif %}
+
+                {% endif %}
+
+                <div class="card-body">
+                    {# Only show the table if the analysis type is 'table' (i.e., Overall Analysis) #}
+                    {% if prediction_info.type == 'table' %}
+                        <h3>Overall Stock Analysis Table:</h3>
+                        {{ prediction_info.data_html | safe }}
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
